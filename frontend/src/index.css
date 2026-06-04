@@ -1,0 +1,83 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  @apply bg-app-bg text-app-text-primary font-sans antialiased;
+}
+
+@layer base {
+  :root {
+    color-scheme: light;
+  }
+
+  ::selection {
+    background: rgba(11, 107, 97, 0.18);
+  }
+
+  input,
+  textarea,
+  select {
+    @apply bg-white/80 border border-app-border rounded-2xl px-4 py-2 text-sm text-app-text-primary outline-none shadow-soft transition;
+  }
+
+  input:focus,
+  textarea:focus,
+  select:focus {
+    @apply ring-2 ring-emerald-100 border-transparent;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: rgba(30, 30, 30, 0.12);
+    border-radius: 999px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+}
+
+@layer components {
+  .ui-card {
+    @apply rounded-3xl bg-app-card border border-app-border shadow-soft;
+  }
+
+  .ui-card-hover {
+    @apply transition-all duration-300 hover:-translate-y-1 hover:shadow-bloom;
+  }
+
+  .ui-pill {
+    @apply inline-flex items-center justify-center rounded-full px-4 py-2 text-sm font-medium transition-transform active:scale-95;
+  }
+
+  .ui-btn-primary {
+    @apply ui-pill bg-brand text-white shadow-soft hover:bg-brand-dark;
+  }
+
+  .ui-btn-secondary {
+    @apply ui-pill bg-white/70 text-app-text-primary border border-app-border hover:bg-white;
+  }
+
+  .ui-btn-ghost {
+    @apply ui-pill text-brand hover:bg-emerald-50;
+  }
+
+  .ui-icon-btn {
+    @apply inline-flex items-center justify-center rounded-full border border-app-border bg-white/70 shadow-soft transition hover:bg-white;
+  }
+
+  .ui-page {
+    @apply px-5 sm:px-7 lg:px-10 py-7 space-y-6 animate-fade-in-up;
+  }
+}
