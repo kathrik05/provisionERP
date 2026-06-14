@@ -1,6 +1,9 @@
+from pathlib import Path
+
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -52,7 +55,6 @@ app.include_router(purchases_router, prefix="/api")
 app.include_router(price_history_router, prefix="/api")
 
 
-@app.get("/")
 @app.get("/api")
 @app.get("/api/")
 def root():
@@ -60,3 +62,29 @@ def root():
         return success({"status": "ok"})
     except Exception as e:
         return error(str(e))
+
+
+frontend_dist = Path(__file__).resolve().parent.parent / "frontend" / "dist"
+frontend_assets = frontend_dist / "assets"
+
+if frontend_assets.is_dir():
+    app.mount("/assets", StaticFiles(directory=frontend_assets), name="assets")
+
+
+@app.get("/{path:path}", include_in_schema=False)
+def frontend(path: str):
+    if path.startswith("api"):
+        return JSONResponse(status_code=404, content=error("Not found"))
+
+    requested_file = frontend_dist / path
+    if path and requested_file.is_file():
+        return FileResponse(requested_file)
+
+    index_file = frontend_dist / "index.html"
+    if index_file.is_file():
+        return FileResponse(index_file)
+
+    return JSONResponse(
+        status_code=503,
+        content=error("Frontend build is unavailable"),
+    )
