@@ -1,11 +1,13 @@
 import base64
 from typing import Any, Dict, List
 
-from weasyprint import HTML
-
-
 def render_invoice_pdf_bytes(*, html: str) -> bytes:
-    return HTML(string=html).write_pdf()
+    try:
+        from weasyprint import HTML
+        return HTML(string=html).write_pdf()
+    except ImportError:
+        raise Exception("PDF Generation is not supported on Vercel because of missing system dependencies (weasyprint).")
+
 
 
 def _img_tag(logo_base64: str | None) -> str:
