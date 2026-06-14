@@ -69,6 +69,26 @@ def extract_client_patterns(db: Session, client_id: UUID) -> Dict[str, Any]:
             delays.append((first_payment - inv.invoice_date).days)
     avg_payment_delay_days = float(sum(delays) / len(delays)) if delays else 0.0
 
+    recent_invoices = []
+    recent_invoice_rows = (
+        db.query(Invoice)
+        .filter(Invoice.client_id == client_id)
+        .order_by(Invoice.invoice_date.desc(), Invoice.created_at.desc())
+        .limit(5)
+        .all()
+    )
+    for inv in recent_invoice_rows:
+        recent_invoices.append(
+            {
+                "invoice_number": inv.invoice_number,
+                "invoice_date": inv.invoice_date.isoformat() if inv.invoice_date else None,
+                "due_date": inv.due_date.isoformat() if inv.due_date else None,
+                "amount_due": float(inv.amount_due or 0),
+                "amount_paid": float(inv.amount_paid or 0),
+                "status": inv.status,
+            }
+        )
+
     # top_items: top 5 items by total order value with avg qty/value
     line_rows = (
         db.query(OrderItem.item_id, func.sum(OrderItem.line_total), func.avg(OrderItem.quantity))
@@ -115,6 +135,7 @@ def extract_client_patterns(db: Session, client_id: UUID) -> Dict[str, Any]:
         "avg_monthly_spend": avg_monthly_spend,
         "order_frequency_days": order_frequency_days,
         "avg_payment_delay_days": avg_payment_delay_days,
+        "recent_invoices": recent_invoices,
         "top_items": top_items,
         "monthly_trend": monthly_trend,
     }
@@ -122,11 +143,12 @@ def extract_client_patterns(db: Session, client_id: UUID) -> Dict[str, Any]:
 
 def _build_offer_prompt(client_summary: Dict[str, Any]) -> str:
     """
-    Prompt asks for a skim-friendly title + short details with numbers.
+    Prompt asks for marketing-friendly offer cards with concrete invoice references.
     """
     return (
         "You are a business advisor for a provisions supplier in India.\n"
         "Currency is Indian Rupees (₹).\n\n"
+        "Write like a strong sales and retention marketer, never like a system log.\n\n"
         f"Client data:\n{json.dumps(client_summary, ensure_ascii=False)}\n\n"
         "Supplier margin is approximately 14-18% on most items.\n\n"
         "Suggest 2 offers from these types only:\n"
@@ -137,14 +159,22 @@ def _build_offer_prompt(client_summary: Dict[str, Any]) -> str:
         "Rules:\n"
         "- Use simple round numbers.\n"
         "- Keep offers realistic for an Indian restaurant/raw-materials supplier.\n"
-        "- In description, show the exact numbers/thresholds and what changes for the client.\n\n"
+        "- Headline: benefit-first, punchy, maximum 8 words.\n"
+        "- client_pitch: 1-2 friendly sentences written directly TO the client in friendly marketing language.\n"
+        "- client_pitch must always reference specific invoice numbers, invoice amounts, and invoice dates from the provided client data when invoices are available.\n"
+        "- Never use vague wording like 'that invoice' or 'your recent invoice' when invoice data exists.\n"
+        "- Make the reward feel tangible, specific, and worth acting on.\n"
+        "- supplier_benefit: 1 sentence explaining why the supplier benefits too, such as faster payment, larger basket size, or stronger retention.\n"
+        "- reasoning: 1 crisp line grounded in the data.\n"
+        "- offer_details: only the relevant numeric or item parameters for the selected offer type.\n\n"
         "Return ONLY a valid JSON array, no text outside JSON.\n"
         "Each object MUST include:\n"
         "- offer_type\n"
-        "- title (short heading, 4-8 words)\n"
-        "- offer_details (only keys relevant to that offer type; include numbers)\n"
-        "- description (2-3 lines, include key numbers/thresholds and what changes)\n"
-        "- reasoning (one line why this suits this client)\n\n"
+        "- headline\n"
+        "- client_pitch\n"
+        "- supplier_benefit\n"
+        "- reasoning\n"
+        "- offer_details (only keys relevant to that offer type; include numbers)\n\n"
         "offer_details keys by type:\n"
         "- buy_get_free: {\"item_name\": string, \"buy_qty\": number, \"free_qty\": number}\n"
         "- slab_discount: {\"min_order_value\": number, \"discount_percent\": number}\n"
@@ -154,10 +184,11 @@ def _build_offer_prompt(client_summary: Dict[str, Any]) -> str:
         "[\n"
         "  {\n"
         "    \"offer_type\": \"buy_get_free|slab_discount|early_payment|loyalty_credit\",\n"
-        "    \"title\": \"...\",\n"
-        "    \"offer_details\": {},\n"
-        "    \"description\": \"...\",\n"
-        "    \"reasoning\": \"...\"\n"
+        "    \"headline\": \"short punchy line, max 8 words, benefit-first\",\n"
+        "    \"client_pitch\": \"1-2 friendly sentences to the client. Mention invoice numbers, amounts, and dates.\",\n"
+        "    \"supplier_benefit\": \"1 sentence on what the supplier gains.\",\n"
+        "    \"reasoning\": \"1 line of data that justifies this offer\",\n"
+        "    \"offer_details\": {}\n"
         "  }\n"
         "]"
     )
@@ -186,9 +217,14 @@ def _parse_offers_json(content: str) -> List[Dict[str, Any]]:
             continue
         if not isinstance(o.get("reasoning"), str):
             continue
-        if not isinstance(o.get("title"), str):
+        headline = o.get("headline", o.get("title"))
+        client_pitch = o.get("client_pitch", o.get("description"))
+        supplier_benefit = o.get("supplier_benefit")
+        if not isinstance(headline, str):
             continue
-        if not isinstance(o.get("description"), str):
+        if not isinstance(client_pitch, str):
+            continue
+        if not isinstance(supplier_benefit, str):
             continue
 
         offer_type = o["offer_type"]
@@ -209,8 +245,9 @@ def _parse_offers_json(content: str) -> List[Dict[str, Any]]:
             {
                 "offer_type": offer_type,
                 "offer_details": details,
-                "title": o["title"],
-                "description": o["description"],
+                "headline": headline,
+                "client_pitch": client_pitch,
+                "supplier_benefit": supplier_benefit,
                 "reasoning": o["reasoning"],
             }
         )
@@ -309,11 +346,21 @@ def fallback_offers(client_summary: Dict[str, Any]) -> List[Dict[str, Any]]:
     pay_delay = float(client_summary.get("avg_payment_delay_days") or 0)
     trend = str(client_summary.get("monthly_trend") or "stable")
     top_items = client_summary.get("top_items") or []
+    recent_invoices = client_summary.get("recent_invoices") or []
 
     def _round_rupees(v: float, step: int = 1000) -> int:
         if v <= 0:
             return step
         return int(round(v / step) * step)
+
+    def _invoice_reference() -> str:
+        if not recent_invoices:
+            return "your latest invoices"
+        inv = recent_invoices[0]
+        invoice_number = inv.get("invoice_number") or "latest invoice"
+        invoice_date = inv.get("invoice_date") or "latest billing date"
+        amount_due = float(inv.get("amount_due") or 0)
+        return f"invoice {invoice_number} for Rs {amount_due:,.0f} dated {invoice_date}"
 
     offers: List[Dict[str, Any]] = []
 
@@ -325,8 +372,9 @@ def fallback_offers(client_summary: Dict[str, Any]) -> List[Dict[str, Any]]:
             {
                 "offer_type": "early_payment",
                 "offer_details": {"pay_within_days": days, "discount_percent": disc},
-                "title": f"{disc:g}% off for {days}-day payment",
-                "description": f"Pay within {days} days of invoice to get {disc:g}% off on that invoice.\nImproves your cashflow; discount stays under 2.5%.",
+                "headline": f"Save {disc:g}% by paying early",
+                "client_pitch": f"Settle {_invoice_reference()} within {days} days and unlock a {disc:g}% discount. It is a simple way to cut the cost on a bill you already need to clear.",
+                "supplier_benefit": "This improves cash collection speed and reduces follow-up effort for the supplier.",
                 "reasoning": f"Client average payment delay is ~{pay_delay:.0f} days.",
             }
         )
@@ -339,6 +387,9 @@ def fallback_offers(client_summary: Dict[str, Any]) -> List[Dict[str, Any]]:
             {
                 "offer_type": "slab_discount",
                 "offer_details": {"min_order_value": min_value, "discount_percent": disc},
+                "headline": f"Unlock {disc:g}% off your next order",
+                "client_pitch": f"Since {_invoice_reference()} shows your current buying level, place your next order above Rs {min_value:,} to save {disc:g}%. It is a practical way to stock up and get a visible discount on the bill.",
+                "supplier_benefit": "This lifts basket size and helps recover order volume without over-discounting.",
                 "title": f"{disc:g}% off above ₹{min_value}",
                 "description": f"Get {disc:g}% off when an order total is above ₹{min_value}.\nHelps recover declining purchase trend with a small discount (<4%).",
                 "reasoning": "Recent 3-month spend trend is declining.",
@@ -351,6 +402,9 @@ def fallback_offers(client_summary: Dict[str, Any]) -> List[Dict[str, Any]]:
             {
                 "offer_type": "loyalty_credit",
                 "offer_details": {"target_spend": target, "credit_amount": credit},
+                "headline": f"Earn Rs {credit:,} back this month",
+                "client_pitch": f"Build on {_invoice_reference()} and reach Rs {target:,} in purchases this month to earn Rs {credit:,} credit on your next bill. That gives you a real, easy-to-use reward for staying consistent.",
+                "supplier_benefit": "This encourages repeat purchasing and improves month-long client retention.",
                 "title": f"Earn ₹{credit} credit at ₹{target}",
                 "description": f"Spend ₹{target} this month and earn ₹{credit} credit on the next invoice.\nReward is ~{(credit/target)*100:.2f}% (<= 1.5%).",
                 "reasoning": "Based on the client’s average monthly spend and stable trend.",
@@ -364,6 +418,9 @@ def fallback_offers(client_summary: Dict[str, Any]) -> List[Dict[str, Any]]:
             {
                 "offer_type": "buy_get_free",
                 "offer_details": {"item_name": item_name, "buy_qty": buy_qty, "free_qty": free_qty},
+                "headline": f"Get extra {item_name} free",
+                "client_pitch": f"Because {_invoice_reference()} shows steady demand, buy {buy_qty} units of {item_name} and get {free_qty} free. You stretch the same purchase into extra usable stock without changing your usual item mix too much.",
+                "supplier_benefit": "This moves a proven item faster while keeping the free quantity within a controlled margin.",
                 "title": f"Buy {buy_qty}, get {free_qty} free",
                 "description": f"On {item_name}: Buy {buy_qty} units and get {free_qty} units free.\nFree qty is {free_qty/buy_qty*100:.2f}% (< 5%).",
                 "reasoning": "Based on the client’s top item by purchase value.",

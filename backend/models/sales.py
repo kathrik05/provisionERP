@@ -106,5 +106,15 @@ class OrderItem(Base):
         Numeric(12, 2), nullable=False, server_default="0"
     )
 
+    cost_price: Mapped[float | None] = mapped_column(
+        Numeric(12, 2), nullable=True
+    )
+    profit_amount: Mapped[float | None] = mapped_column(
+        Numeric(12, 2), nullable=True
+    )
+    profit_percent: Mapped[float | None] = mapped_column(
+        Numeric(12, 2), nullable=True
+    )
+
     order = relationship("SalesOrder", back_populates="items")
     item = relationship("Item")

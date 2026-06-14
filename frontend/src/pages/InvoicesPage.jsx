@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Download, Eye } from "lucide-react";
+import { Download, Eye, FileText } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useLocation } from "react-router-dom";
 import { useInvoices } from "../hooks/useInvoices";
@@ -8,6 +8,7 @@ import { useClients } from "../hooks/useClients";
 import DataTable from "../ui/DataTable.jsx";
 import TableRowCard from "../ui/TableRowCard.jsx";
 import StatusPill from "../ui/StatusPill.jsx";
+import EmptyState from "../ui/EmptyState.jsx";
 
 export default function InvoicesPage() {
   const nav = useNavigate();
@@ -133,11 +134,19 @@ export default function InvoicesPage() {
           ]}
           rows={listQuery.isLoading || listQuery.isError ? [] : rows}
           empty={
-            listQuery.isLoading
-              ? "Loading…"
-              : listQuery.isError
-                ? "Failed to load invoices"
-                : "No invoices found"
+            listQuery.isLoading ? (
+              "Loading…"
+            ) : listQuery.isError ? (
+              "Failed to load invoices"
+            ) : (
+              <EmptyState
+                icon={FileText}
+                title="No invoices found"
+                description="Invoices will appear here once they are generated from sales orders."
+                actionLabel="Create Sales Order"
+                onAction={() => nav("/sales/new")}
+              />
+            )
           }
           renderRow={(inv) => {
             const overdue = inv.due_date < today && inv.status !== "paid";

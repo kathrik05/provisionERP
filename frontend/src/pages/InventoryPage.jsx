@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import { Edit2, TriangleAlert, UserX, Wrench } from "lucide-react";
+import { Edit2, TriangleAlert, UserX, Wrench, Package } from "lucide-react";
 import { useLocation } from "react-router-dom";
 import Modal from "../components/Modal.jsx";
 import DataTable from "../ui/DataTable.jsx";
 import TableRowCard from "../ui/TableRowCard.jsx";
 import StatusPill from "../ui/StatusPill.jsx";
+import EmptyState from "../ui/EmptyState.jsx";
 import {
   useAdjustStock,
   useCreateItem,
@@ -210,11 +211,19 @@ export default function InventoryPage() {
           ]}
           rows={listQuery.isLoading || listQuery.isError ? [] : rows}
           empty={
-            listQuery.isLoading
-              ? "Loading…"
-              : listQuery.isError
-                ? "Failed to load items"
-                : "No items found"
+            listQuery.isLoading ? (
+              "Loading…"
+            ) : listQuery.isError ? (
+              "Failed to load items"
+            ) : (
+              <EmptyState
+                icon={Package}
+                title="No items found"
+                description="Get started by adding your first inventory item."
+                actionLabel="Add Item"
+                onAction={openAdd}
+              />
+            )
           }
           renderRow={(i) => {
             const isTracked = !!i.track_stock;

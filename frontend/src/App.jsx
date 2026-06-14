@@ -14,6 +14,13 @@ import ReportsPage from "./pages/ReportsPage.jsx";
 import OffersPage from "./pages/OffersPage.jsx";
 import OfferSimulatorPage from "./pages/OfferSimulatorPage.jsx";
 
+import SuppliersPage from "./pages/SuppliersPage.jsx";
+import SupplierDetailPage from "./pages/SupplierDetailPage.jsx";
+import PurchasesPage from "./pages/PurchasesPage.jsx";
+import PurchaseOrderFormPage from "./pages/PurchaseOrderFormPage.jsx";
+import PurchaseOrderDetailPage from "./pages/PurchaseOrderDetailPage.jsx";
+import PriceHistoryPage from "./pages/PriceHistoryPage.jsx";
+
 export default function App() {
   return (
     <Routes>
@@ -32,6 +39,16 @@ export default function App() {
         <Route path="/reports" element={<ReportsPage />} />
         <Route path="/offers" element={<OffersPage />} />
         <Route path="/offers/simulator" element={<OfferSimulatorPage />} />
+        
+        <Route path="/suppliers" element={<SuppliersPage />} />
+        <Route path="/suppliers/:id" element={<SupplierDetailPage />} />
+        
+        <Route path="/purchases" element={<PurchasesPage />} />
+        <Route path="/purchases/new" element={<PurchaseOrderFormPage />} />
+        <Route path="/purchases/:id" element={<PurchaseOrderDetailPage />} />
+        <Route path="/purchases/:id/edit" element={<PurchaseOrderFormPage />} />
+        
+        <Route path="/price-history" element={<PriceHistoryPage />} />
         <Route path="/settings" element={<SettingsPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/dashboard" replace />} />

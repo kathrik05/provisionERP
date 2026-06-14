@@ -5,6 +5,10 @@ import {
   getOutstandingReport,
   getPaymentsReport,
   getSalesReport,
+  getProfitReport,
+  getProfitSummary,
+  getProfitByItem,
+  getProfitByClient,
 } from "../api/reports";
 
 export function useDashboard() {
@@ -36,6 +40,27 @@ export function usePaymentsReport(filters) {
   return useQuery({
     queryKey: ["reports", "payments", filters ?? {}],
     queryFn: () => getPaymentsReport(filters),
+  });
+}
+
+export function useProfitSummary(filters) {
+  return useQuery({
+    queryKey: ["reports", "profit-summary", filters ?? {}],
+    queryFn: () => getProfitSummary(filters),
+  });
+}
+
+export function useProfitByItem(filters) {
+  return useQuery({
+    queryKey: ["reports", "profit-by-item", filters ?? {}],
+    queryFn: () => getProfitByItem(filters),
+  });
+}
+
+export function useProfitByClient(filters) {
+  return useQuery({
+    queryKey: ["reports", "profit-by-client", filters ?? {}],
+    queryFn: () => getProfitByClient(filters),
   });
 }
 

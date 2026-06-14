@@ -25,6 +25,9 @@ class OrderItemOut(BaseModel):
     tax_id: Optional[UUID] = None
     tax_rate: float = 0
     tax_amount: float = 0
+    cost_price: Optional[float] = None
+    profit_amount: Optional[float] = None
+    profit_percent: Optional[float] = None
     item: Optional[dict] = None
 
 

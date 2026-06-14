@@ -2,7 +2,8 @@ import { useMemo, useState } from "react";
 import { useLocation } from "react-router-dom";
 import SearchSelect from "../components/SearchSelect.jsx";
 import { useClients } from "../hooks/useClients";
-import { useInventoryReport, useOutstandingReport, usePaymentsReport, useSalesReport } from "../hooks/useReports";
+import { useInventoryReport, useOutstandingReport, usePaymentsReport, useSalesReport, useProfitSummary, useProfitByItem, useProfitByClient } from "../hooks/useReports";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from "recharts";
 
 function TabButton({ active, onClick, children }) {
   return (
@@ -67,6 +68,10 @@ export default function ReportsPage() {
           <TabButton active={tab === "outstanding"} onClick={() => setTab("outstanding")}>Outstanding</TabButton>
           <TabButton active={tab === "inventory"} onClick={() => setTab("inventory")}>Inventory</TabButton>
           <TabButton active={tab === "payments"} onClick={() => setTab("payments")}>Payments</TabButton>
+          <div className="w-px h-6 bg-app-border mx-1"></div>
+          <TabButton active={tab === "profit_summary"} onClick={() => setTab("profit_summary")}>Profit Summary</TabButton>
+          <TabButton active={tab === "profit_by_item"} onClick={() => setTab("profit_by_item")}>Profit By Item</TabButton>
+          <TabButton active={tab === "profit_by_client"} onClick={() => setTab("profit_by_client")}>Profit By Client</TabButton>
         </div>
       </div>
 
@@ -291,7 +296,156 @@ export default function ReportsPage() {
             </>
           )
         ) : null}
+
+        {tab === "profit_summary" ? (
+          <ProfitSummaryTab fromDate={fromDate} setFromDate={setFromDate} toDate={toDate} setToDate={setToDate} />
+        ) : null}
+
+        {tab === "profit_by_item" ? (
+          <ProfitByItemTab fromDate={fromDate} setFromDate={setFromDate} toDate={toDate} setToDate={setToDate} />
+        ) : null}
+
+        {tab === "profit_by_client" ? (
+          <ProfitByClientTab fromDate={fromDate} setFromDate={setFromDate} toDate={toDate} setToDate={setToDate} />
+        ) : null}
       </div>
     </div>
+  );
+}
+
+function ProfitSummaryTab({ fromDate, setFromDate, toDate, setToDate }) {
+  const query = useProfitSummary({ from_date: fromDate || undefined, to_date: toDate || undefined });
+  
+  if (query.isLoading) return <div className="ui-card p-6 text-sm text-app-text-secondary animate-pulse">Loading profit summary...</div>;
+  if (query.isError) return <div className="ui-card p-6 text-sm text-red-600">Failed to load profit summary</div>;
+
+  const data = query.data;
+  
+  const chartData = [
+    {
+      name: "Financials",
+      Revenue: data.total_revenue,
+      Cost: data.total_cost,
+      Profit: data.total_profit
+    }
+  ];
+
+  return (
+    <>
+      <div className="grid grid-cols-2 gap-3 no-print mb-4">
+        <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="w-full bg-white border border-gray-200 rounded-2xl px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-100 transition-all" />
+        <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="w-full bg-white border border-gray-200 rounded-2xl px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-100 transition-all" />
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <StatsCard title="Total Revenue" value={`₹${data.total_revenue.toFixed(2)}`} />
+        <StatsCard title="Total Cost" value={`₹${data.total_cost.toFixed(2)}`} />
+        <StatsCard title="Total Profit" value={`₹${data.total_profit.toFixed(2)}`} accentClassName={data.total_profit > 0 ? "text-emerald-600" : "text-red-600"} />
+        <StatsCard title="Avg Margin" value={`${data.avg_margin_percent.toFixed(2)}%`} accentClassName={data.avg_margin_percent > 20 ? "text-emerald-600" : data.avg_margin_percent > 10 ? "text-amber-600" : "text-red-600"} />
+      </div>
+
+      <div className="ui-card p-6 h-[400px]">
+        <h3 className="text-lg font-semibold mb-4">Revenue vs Cost vs Profit</h3>
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+            <CartesianGrid strokeDasharray="3 3" vertical={false} />
+            <XAxis dataKey="name" />
+            <YAxis tickFormatter={(value) => `₹${value}`} />
+            <RechartsTooltip formatter={(value) => [`₹${value.toFixed(2)}`]} />
+            <Legend />
+            <Bar dataKey="Revenue" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="Cost" fill="#ef4444" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="Profit" fill="#10b981" radius={[4, 4, 0, 0]} />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    </>
+  );
+}
+
+function ProfitByItemTab({ fromDate, setFromDate, toDate, setToDate }) {
+  const query = useProfitByItem({ from_date: fromDate || undefined, to_date: toDate || undefined });
+  
+  if (query.isLoading) return <div className="ui-card p-6 text-sm text-app-text-secondary animate-pulse">Loading item profit...</div>;
+  if (query.isError) return <div className="ui-card p-6 text-sm text-red-600">Failed to load item profit</div>;
+
+  return (
+    <>
+      <div className="grid grid-cols-2 gap-3 no-print mb-4">
+        <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="w-full bg-white border border-gray-200 rounded-2xl px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-100 transition-all" />
+        <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="w-full bg-white border border-gray-200 rounded-2xl px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-100 transition-all" />
+      </div>
+
+      <DataTable
+        gridCols="sm:grid-cols-[1.5fr_1fr_1fr_1fr_1fr_1fr]"
+        columns={[
+          { key: "item_name", header: "Item" },
+          { key: "qty", header: "Qty Sold", align: "right" },
+          { key: "avg_sell", header: "Avg Selling", align: "right" },
+          { key: "avg_cost", header: "Avg Cost", align: "right" },
+          { key: "margin", header: "Avg Margin %", align: "right" },
+          { key: "profit", header: "Total Profit", align: "right" },
+        ]}
+        rows={query.data?.data || []}
+        empty="No data"
+        renderRow={(i, idx) => {
+          const margin = i.avg_margin_percent;
+          return (
+            <TableRowCard key={idx} className={margin < 10 ? "border-amber-200 bg-amber-50/50" : ""}>
+              <div className="font-semibold text-[#111] truncate">{i.item_name}</div>
+              <div className="text-sm text-gray-600 text-right">{i.total_sold_qty.toFixed(2)}</div>
+              <div className="text-sm text-gray-600 text-right">₹{i.avg_selling_price.toFixed(2)}</div>
+              <div className="text-sm text-gray-600 text-right">₹{i.avg_cost_price.toFixed(2)}</div>
+              <div className={`text-right font-semibold ${margin < 10 ? "text-amber-600" : margin > 20 ? "text-emerald-600" : "text-gray-600"}`}>
+                {margin.toFixed(2)}%
+              </div>
+              <div className={`text-right font-bold ${i.total_profit > 0 ? "text-emerald-600" : "text-red-600"}`}>
+                ₹{i.total_profit.toFixed(2)}
+              </div>
+            </TableRowCard>
+          );
+        }}
+      />
+    </>
+  );
+}
+
+function ProfitByClientTab({ fromDate, setFromDate, toDate, setToDate }) {
+  const query = useProfitByClient({ from_date: fromDate || undefined, to_date: toDate || undefined });
+  
+  if (query.isLoading) return <div className="ui-card p-6 text-sm text-app-text-secondary animate-pulse">Loading client profit...</div>;
+  if (query.isError) return <div className="ui-card p-6 text-sm text-red-600">Failed to load client profit</div>;
+
+  return (
+    <>
+      <div className="grid grid-cols-2 gap-3 no-print mb-4">
+        <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="w-full bg-white border border-gray-200 rounded-2xl px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-100 transition-all" />
+        <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="w-full bg-white border border-gray-200 rounded-2xl px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-100 transition-all" />
+      </div>
+
+      <DataTable
+        gridCols="sm:grid-cols-[2fr_1fr_1fr_1fr_1fr]"
+        columns={[
+          { key: "client_name", header: "Client" },
+          { key: "revenue", header: "Total Revenue", align: "right" },
+          { key: "cost", header: "Total Cost", align: "right" },
+          { key: "margin", header: "Avg Margin %", align: "right" },
+          { key: "profit", header: "Total Profit", align: "right" },
+        ]}
+        rows={query.data?.data || []}
+        empty="No data"
+        renderRow={(c, idx) => (
+          <TableRowCard key={idx}>
+            <div className="font-semibold text-[#111] truncate">{c.client_name}</div>
+            <div className="text-sm text-gray-600 text-right">₹{c.total_revenue.toFixed(2)}</div>
+            <div className="text-sm text-gray-600 text-right">₹{c.total_cost.toFixed(2)}</div>
+            <div className="text-right font-semibold text-gray-600">{c.avg_margin_percent.toFixed(2)}%</div>
+            <div className={`text-right font-bold ${c.total_profit > 0 ? "text-emerald-600" : "text-red-600"}`}>
+              ₹{c.total_profit.toFixed(2)}
+            </div>
+          </TableRowCard>
+        )}
+      />
+    </>
   );
 }

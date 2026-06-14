@@ -23,6 +23,30 @@ from services.offer_engine import (
 router = APIRouter(prefix="/offers", tags=["offers"])
 
 
+def _serialize_offer(o: ClientOfferRecommendation) -> dict:
+    details = o.offer_details or {}
+    return {
+        "id": str(o.id),
+        "client_id": str(o.client_id),
+        "offer_type": o.offer_type,
+        "offer_details": details,
+        "headline": details.get("headline") or details.get("title"),
+        "client_pitch": details.get("client_pitch") or details.get("description"),
+        "supplier_benefit": details.get("supplier_benefit"),
+        "reasoning": o.reasoning,
+        "status": o.status,
+        "created_at": o.created_at.isoformat() if o.created_at else None,
+    }
+
+
+def _has_marketing_copy(o: ClientOfferRecommendation) -> bool:
+    details = o.offer_details or {}
+    return all(
+        isinstance(details.get(key), str) and (details.get(key) or "").strip()
+        for key in ("headline", "client_pitch", "supplier_benefit")
+    )
+
+
 @router.get("/clients/{client_id}/analyse")
 def analyse_client(
     client_id: UUID,
@@ -40,26 +64,8 @@ def analyse_client(
             .order_by(ClientOfferRecommendation.created_at.desc())
             .all()
         )
-        # Cache is only valid if it includes the newer skim-friendly fields.
-        if cached and all(
-            isinstance((o.offer_details or {}).get("title"), str)
-            and ((o.offer_details or {}).get("title") or "").strip()
-            for o in cached[:2]
-        ):
-            return success(
-                [
-                    {
-                        "id": str(o.id),
-                        "client_id": str(o.client_id),
-                        "offer_type": o.offer_type,
-                        "offer_details": o.offer_details,
-                        "reasoning": o.reasoning,
-                        "status": o.status,
-                        "created_at": o.created_at.isoformat() if o.created_at else None,
-                    }
-                    for o in cached
-                ]
-            )
+        if cached and all(_has_marketing_copy(o) for o in cached[:2]):
+            return success([_serialize_offer(o) for o in cached])
 
         summary = extract_client_patterns(db, client_id)
         summary["client_name"] = client.name
@@ -83,8 +89,9 @@ def analyse_client(
                 offer_type=o["offer_type"],
                 offer_details={
                     **o["offer_details"],
-                    "title": o.get("title"),
-                    "description": o.get("description"),
+                    "headline": o.get("headline"),
+                    "client_pitch": o.get("client_pitch"),
+                    "supplier_benefit": o.get("supplier_benefit"),
                 },
                 reasoning=o["reasoning"],
                 status="pending",
@@ -99,20 +106,7 @@ def analyse_client(
         for r in saved:
             db.refresh(r)
 
-        return success(
-            [
-                {
-                    "id": str(r.id),
-                    "client_id": str(r.client_id),
-                    "offer_type": r.offer_type,
-                    "offer_details": r.offer_details,
-                    "reasoning": r.reasoning,
-                    "status": r.status,
-                    "created_at": r.created_at.isoformat() if r.created_at else None,
-                }
-                for r in saved
-            ]
-        )
+        return success([_serialize_offer(r) for r in saved])
     except Exception as e:
         db.rollback()
         return error(str(e))
@@ -127,20 +121,7 @@ def list_client_offers(client_id: UUID, db: Session = Depends(get_db)):
             .order_by(ClientOfferRecommendation.created_at.desc())
             .all()
         )
-        return success(
-            [
-                {
-                    "id": str(o.id),
-                    "client_id": str(o.client_id),
-                    "offer_type": o.offer_type,
-                    "offer_details": o.offer_details,
-                    "reasoning": o.reasoning,
-                    "status": o.status,
-                    "created_at": o.created_at.isoformat() if o.created_at else None,
-                }
-                for o in rows
-            ]
-        )
+        return success([_serialize_offer(o) for o in rows])
     except Exception as e:
         return error(str(e))
 
@@ -159,17 +140,7 @@ def update_offer_status(offer_id: UUID, payload: OfferStatusUpdateIn, db: Sessio
         db.add(offer)
         db.commit()
         db.refresh(offer)
-        return success(
-            {
-                "id": str(offer.id),
-                "client_id": str(offer.client_id),
-                "offer_type": offer.offer_type,
-                "offer_details": offer.offer_details,
-                "reasoning": offer.reasoning,
-                "status": offer.status,
-                "created_at": offer.created_at.isoformat() if offer.created_at else None,
-            }
-        )
+        return success(_serialize_offer(offer))
     except Exception as e:
         db.rollback()
         return error(str(e))
@@ -188,14 +159,8 @@ def list_active_offers(db: Session = Depends(get_db)):
         return success(
             [
                 {
-                    "id": str(o.id),
-                    "client_id": str(o.client_id),
+                    **_serialize_offer(o),
                     "client_name": o.client.name if o.client else None,
-                    "offer_type": o.offer_type,
-                    "offer_details": o.offer_details,
-                    "reasoning": o.reasoning,
-                    "status": o.status,
-                    "created_at": o.created_at.isoformat() if o.created_at else None,
                 }
                 for o in rows
             ]

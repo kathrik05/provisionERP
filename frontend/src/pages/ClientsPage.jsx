@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Edit2, UserX } from "lucide-react";
+import { Edit2, UserX, Users } from "lucide-react";
 import Modal from "../components/Modal.jsx";
 import {
   useClients,
@@ -11,6 +11,7 @@ import TableRowCard from "../ui/TableRowCard.jsx";
 import DataTable from "../ui/DataTable.jsx";
 import PillButton from "../ui/PillButton.jsx";
 import TopNavbar from "../ui/TopNavbar.jsx";
+import EmptyState from "../ui/EmptyState.jsx";
 
 function isValidEmail(v) {
   if (!v) return true;
@@ -136,11 +137,19 @@ export default function ClientsPage() {
           ]}
           rows={clientsQuery.isLoading || clientsQuery.isError ? [] : rows}
           empty={
-            clientsQuery.isLoading
-              ? "Loading…"
-              : clientsQuery.isError
-                ? "Failed to load clients"
-                : "No clients found"
+            clientsQuery.isLoading ? (
+              "Loading…"
+            ) : clientsQuery.isError ? (
+              "Failed to load clients"
+            ) : (
+              <EmptyState
+                icon={Users}
+                title="No clients present"
+                description="Get started by adding your first client."
+                actionLabel="Add New Client"
+                onAction={openAdd}
+              />
+            )
           }
           renderRow={(c) => (
             <TableRowCard key={c.id}>

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { CheckCircle2, Eye, Pencil } from "lucide-react";
+import { CheckCircle2, Eye, Pencil, ShoppingCart } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useConfirmSalesOrder, useSalesOrders } from "../hooks/useSales";
 import DataTable from "../ui/DataTable.jsx";
@@ -8,6 +8,7 @@ import TopNavbar from "../ui/TopNavbar.jsx";
 
 import TableRowCard from "../ui/TableRowCard.jsx";
 import StatusPill from "../ui/StatusPill.jsx";
+import EmptyState from "../ui/EmptyState.jsx";
 
 export default function SalesOrdersPage() {
   const nav = useNavigate();
@@ -69,11 +70,19 @@ export default function SalesOrdersPage() {
           ]}
           rows={listQuery.isLoading || listQuery.isError ? [] : rows}
           empty={
-            listQuery.isLoading
-              ? "Loading…"
-              : listQuery.isError
-                ? "Failed to load orders"
-                : "No orders found"
+            listQuery.isLoading ? (
+              "Loading…"
+            ) : listQuery.isError ? (
+              "Failed to load orders"
+            ) : (
+              <EmptyState
+                icon={ShoppingCart}
+                title="No orders found"
+                description="Get started by creating a new sales order."
+                actionLabel="New Order"
+                onAction={() => nav("/sales/new")}
+              />
+            )
           }
           renderRow={(o) => (
             <TableRowCard key={o.id}>

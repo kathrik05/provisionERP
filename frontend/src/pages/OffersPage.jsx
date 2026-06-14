@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
+import { Gift, Search } from "lucide-react";
 import SearchSelect from "../components/SearchSelect.jsx";
 import { useClients } from "../hooks/useClients";
 import { useActiveOffers, useAnalyseClient, useUpdateOfferStatus } from "../hooks/useOffers";
 import DataTable from "../ui/DataTable.jsx";
 import TableRowCard from "../ui/TableRowCard.jsx";
 import StatusPill from "../ui/StatusPill.jsx";
+import EmptyState from "../ui/EmptyState.jsx";
 
 function TabButton({ active, onClick, children }) {
   return (
@@ -45,6 +47,8 @@ function typeBadge(type) {
 
 function renderTitle(offer) {
   const d = offer.offer_details || {};
+  if (typeof offer.headline === "string" && offer.headline.trim()) return offer.headline.trim();
+  if (typeof d.headline === "string" && d.headline.trim()) return d.headline.trim();
   if (typeof d.title === "string" && d.title.trim()) return d.title.trim();
   if (offer.offer_type === "buy_get_free") return `Buy ${d.buy_qty} units, get ${d.free_qty} units free`;
   if (offer.offer_type === "slab_discount") return `Order above ₹${d.min_order_value}, get ${d.discount_percent}% off`;
@@ -53,9 +57,18 @@ function renderTitle(offer) {
   return "—";
 }
 
-function renderDescription(offer) {
+function renderClientPitch(offer) {
   const d = offer.offer_details || {};
+  if (typeof offer.client_pitch === "string" && offer.client_pitch.trim()) return offer.client_pitch.trim();
+  if (typeof d.client_pitch === "string" && d.client_pitch.trim()) return d.client_pitch.trim();
   if (typeof d.description === "string" && d.description.trim()) return d.description.trim();
+  return "";
+}
+
+function renderSupplierBenefit(offer) {
+  const d = offer.offer_details || {};
+  if (typeof offer.supplier_benefit === "string" && offer.supplier_benefit.trim()) return offer.supplier_benefit.trim();
+  if (typeof d.supplier_benefit === "string" && d.supplier_benefit.trim()) return d.supplier_benefit.trim();
   return "";
 }
 
@@ -142,12 +155,22 @@ export default function OffersPage() {
                 {analyseMut.error?.response?.data?.error || analyseMut.error?.message || "Analysis failed. Try again."}
               </div>
             ) : !client?.id ? (
-              <div className="bg-white rounded border border-gray-200 p-6 text-sm text-gray-600">
-                Select a client to begin.
+              <div className="py-12">
+                <EmptyState
+                  icon={Search}
+                  title="Select a client"
+                  description="Select a client above to begin analysis."
+                />
               </div>
             ) : offers.length === 0 ? (
-              <div className="bg-white rounded border border-gray-200 p-6 text-sm text-gray-600">
-                No offers yet. Click Analyse.
+              <div className="py-12">
+                <EmptyState
+                  icon={Gift}
+                  title="No offers yet"
+                  description="Click Analyse to generate personalized offers for this client."
+                  actionLabel="Analyse Client"
+                  onAction={analyse}
+                />
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -160,10 +183,17 @@ export default function OffersPage() {
 
                     <div>
                       <div className="text-base font-semibold text-[#111]">{renderTitle(o)}</div>
-                      {renderDescription(o) ? (
-                        <div className="mt-1.5 text-sm text-gray-500 whitespace-pre-line leading-relaxed">{renderDescription(o)}</div>
+                      {renderClientPitch(o) ? (
+                        <div className="mt-1.5 text-sm text-gray-600 whitespace-pre-line leading-relaxed">{renderClientPitch(o)}</div>
                       ) : null}
                     </div>
+
+                    {renderSupplierBenefit(o) ? (
+                      <div className="bg-amber-50 border border-amber-100 p-3 rounded-xl">
+                        <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-amber-800">Your benefit as supplier</div>
+                        <div className="mt-1 text-sm text-amber-900 leading-relaxed">{renderSupplierBenefit(o)}</div>
+                      </div>
+                    ) : null}
 
                     <div className="text-xs text-app-text-secondary italic bg-gray-50 p-3 rounded-xl border border-gray-100">{o.reasoning}</div>
 
@@ -202,11 +232,19 @@ export default function OffersPage() {
             ]}
             rows={activeOffersQuery.isLoading || activeOffersQuery.isError ? [] : (activeOffersQuery.data ?? [])}
             empty={
-              activeOffersQuery.isLoading
-                ? "Loading…"
-                : activeOffersQuery.isError
-                  ? "Failed to load active offers"
-                  : "No active offers yet"
+              activeOffersQuery.isLoading ? (
+                "Loading…"
+              ) : activeOffersQuery.isError ? (
+                "Failed to load active offers"
+              ) : (
+                <EmptyState
+                  icon={Gift}
+                  title="No active offers yet"
+                  description="Go to the Analyse Client tab to generate new offers."
+                  actionLabel="Analyse Client"
+                  onAction={() => setTab("analyse")}
+                />
+              )
             }
             renderRow={(o) => (
               <TableRowCard key={o.id}>
@@ -214,7 +252,8 @@ export default function OffersPage() {
                 <div>{typeBadge(o.offer_type)}</div>
                 <div className="truncate">
                   <div className="font-medium text-[#111] truncate">{renderTitle(o)}</div>
-                  {renderDescription(o) ? <div className="mt-1 text-sm text-gray-500 truncate">{renderDescription(o)}</div> : null}
+                  {renderClientPitch(o) ? <div className="mt-1 text-sm text-gray-500 truncate">{renderClientPitch(o)}</div> : null}
+                  {renderSupplierBenefit(o) ? <div className="mt-1 text-xs text-amber-800 truncate">Your benefit as supplier: {renderSupplierBenefit(o)}</div> : null}
                 </div>
                 <div className="text-sm text-gray-500 whitespace-nowrap">{o.created_at?.slice(0, 10)}</div>
                 <div className="flex items-center justify-end">

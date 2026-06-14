@@ -377,3 +377,165 @@ def payments_report(
     except Exception as e:
         return error(str(e))
 
+from models.sales import OrderItem
+
+@router.get("/profit")
+def profit_report(
+    from_date: Optional[date] = Query(default=None),
+    to_date: Optional[date] = Query(default=None),
+    client_id: Optional[UUID] = Query(default=None),
+    item_id: Optional[UUID] = Query(default=None),
+    db: Session = Depends(get_db)
+):
+    try:
+        q = db.query(OrderItem).join(SalesOrder).filter(SalesOrder.status.in_(["confirmed", "invoiced", "paid"]))
+        
+        if from_date:
+            q = q.filter(SalesOrder.order_date >= from_date)
+        if to_date:
+            q = q.filter(SalesOrder.order_date <= to_date)
+        if client_id:
+            q = q.filter(SalesOrder.client_id == client_id)
+        if item_id:
+            q = q.filter(OrderItem.item_id == item_id)
+            
+        items = q.options(joinedload(OrderItem.order).joinedload(SalesOrder.client), joinedload(OrderItem.item)).order_by(SalesOrder.order_date.desc()).all()
+        
+        rows = []
+        for li in items:
+            rows.append({
+                "order_number": li.order.order_number if li.order else None,
+                "order_date": li.order.order_date.isoformat() if li.order and li.order.order_date else None,
+                "client_name": li.order.client.name if li.order and li.order.client else None,
+                "item_name": li.item.name if li.item else None,
+                "quantity": float(li.quantity),
+                "unit_price": float(li.unit_price),
+                "cost_price": float(li.cost_price) if li.cost_price else None,
+                "profit_amount": float(li.profit_amount) if li.profit_amount else None,
+                "profit_percent": float(li.profit_percent) if li.profit_percent else None,
+            })
+            
+        return success({"data": rows})
+    except Exception as e:
+        return error(str(e))
+
+@router.get("/profit/summary")
+def profit_summary(
+    from_date: Optional[date] = Query(default=None),
+    to_date: Optional[date] = Query(default=None),
+    db: Session = Depends(get_db)
+):
+    try:
+        q = db.query(
+            func.sum(OrderItem.line_total).label("total_revenue"),
+            func.sum(OrderItem.quantity * OrderItem.cost_price).label("total_cost"),
+            func.sum(OrderItem.profit_amount).label("total_profit")
+        ).join(SalesOrder).filter(SalesOrder.status.in_(["confirmed", "invoiced", "paid"])).filter(OrderItem.cost_price.isnot(None))
+        
+        if from_date:
+            q = q.filter(SalesOrder.order_date >= from_date)
+        if to_date:
+            q = q.filter(SalesOrder.order_date <= to_date)
+            
+        res = q.first()
+        total_revenue = float(res.total_revenue or 0)
+        total_cost = float(res.total_cost or 0)
+        total_profit = float(res.total_profit or 0)
+        avg_margin_percent = (total_profit / total_cost * 100) if total_cost > 0 else 0
+        
+        return success({
+            "total_revenue": total_revenue,
+            "total_cost": total_cost,
+            "total_profit": total_profit,
+            "avg_margin_percent": avg_margin_percent
+        })
+    except Exception as e:
+        return error(str(e))
+
+@router.get("/profit/by-item")
+def profit_by_item(
+    from_date: Optional[date] = Query(default=None),
+    to_date: Optional[date] = Query(default=None),
+    item_id: Optional[UUID] = Query(default=None),
+    db: Session = Depends(get_db)
+):
+    try:
+        q = db.query(
+            Item.name.label("item_name"),
+            func.sum(OrderItem.quantity).label("total_sold_qty"),
+            func.avg(OrderItem.unit_price).label("avg_selling_price"),
+            func.avg(OrderItem.cost_price).label("avg_cost_price"),
+            func.sum(OrderItem.profit_amount).label("total_profit")
+        ).select_from(OrderItem).join(Item).join(SalesOrder).filter(SalesOrder.status.in_(["confirmed", "invoiced", "paid"])).filter(OrderItem.cost_price.isnot(None))
+        
+        if from_date:
+            q = q.filter(SalesOrder.order_date >= from_date)
+        if to_date:
+            q = q.filter(SalesOrder.order_date <= to_date)
+        if item_id:
+            q = q.filter(OrderItem.item_id == item_id)
+            
+        q = q.group_by(Item.id, Item.name).order_by(func.sum(OrderItem.profit_amount).desc())
+        
+        results = q.all()
+        rows = []
+        for r in results:
+            cost = float(r.avg_cost_price or 0)
+            sell = float(r.avg_selling_price or 0)
+            margin = ((sell - cost) / cost * 100) if cost > 0 else 0
+            rows.append({
+                "item_name": r.item_name,
+                "total_sold_qty": float(r.total_sold_qty or 0),
+                "avg_selling_price": sell,
+                "avg_cost_price": cost,
+                "avg_margin_percent": margin,
+                "total_profit": float(r.total_profit or 0)
+            })
+            
+        return success({"data": rows})
+    except Exception as e:
+        return error(str(e))
+
+@router.get("/profit/by-client")
+def profit_by_client(
+    from_date: Optional[date] = Query(default=None),
+    to_date: Optional[date] = Query(default=None),
+    client_id: Optional[UUID] = Query(default=None),
+    db: Session = Depends(get_db)
+):
+    try:
+        q = db.query(
+            Client.name.label("client_name"),
+            func.sum(OrderItem.line_total).label("total_revenue"),
+            func.sum(OrderItem.quantity * OrderItem.cost_price).label("total_cost"),
+            func.sum(OrderItem.profit_amount).label("total_profit")
+        ).select_from(OrderItem).join(SalesOrder).join(Client).filter(SalesOrder.status.in_(["confirmed", "invoiced", "paid"])).filter(OrderItem.cost_price.isnot(None))
+        
+        if from_date:
+            q = q.filter(SalesOrder.order_date >= from_date)
+        if to_date:
+            q = q.filter(SalesOrder.order_date <= to_date)
+        if client_id:
+            q = q.filter(SalesOrder.client_id == client_id)
+            
+        q = q.group_by(Client.id, Client.name).order_by(func.sum(OrderItem.profit_amount).desc())
+        
+        results = q.all()
+        rows = []
+        for r in results:
+            cost = float(r.total_cost or 0)
+            rev = float(r.total_revenue or 0)
+            margin = ((rev - cost) / cost * 100) if cost > 0 else 0
+            rows.append({
+                "client_name": r.client_name,
+                "total_revenue": rev,
+                "total_cost": cost,
+                "total_profit": float(r.total_profit or 0),
+                "avg_margin_percent": margin
+            })
+            
+        return success({"data": rows})
+    except Exception as e:
+        return error(str(e))
+
+

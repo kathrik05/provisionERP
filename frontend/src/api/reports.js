@@ -25,3 +25,23 @@ export async function getPaymentsReport(params) {
   return res.data.data;
 }
 
+export async function getProfitReport(params) {
+  const res = await http.get("/reports/profit", { params: params ?? {} });
+  return res.data.data;
+}
+
+export async function getProfitSummary(params) {
+  const res = await http.get("/reports/profit/summary", { params: params ?? {} });
+  return res.data.data;
+}
+
+export async function getProfitByItem(params) {
+  const res = await http.get("/reports/profit/by-item", { params: params ?? {} });
+  return res.data.data;
+}
+
+export async function getProfitByClient(params) {
+  const res = await http.get("/reports/profit/by-client", { params: params ?? {} });
+  return res.data.data;
+}
+

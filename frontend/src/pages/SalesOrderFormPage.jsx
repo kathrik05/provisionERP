@@ -251,7 +251,7 @@ export default function SalesOrderFormPage() {
             <button
               type="button"
               onClick={addLine}
-              className="text-sm px-5 py-2 rounded-full font-medium border border-app-border bg-white/70 hover:bg-white text-app-text-secondary hover:text-app-text-primary transition-all active:scale-95"
+              className="ui-btn-primary text-sm px-4 py-2"
             >
               Add Item
             </button>

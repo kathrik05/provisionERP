@@ -21,6 +21,8 @@ import StatsCard from "../ui/StatsCard.jsx";
 import TopNavbar from "../ui/TopNavbar.jsx";
 import TableRowCard from "../ui/TableRowCard.jsx";
 import StatusPill from "../ui/StatusPill.jsx";
+import EmptyState from "../ui/EmptyState.jsx";
+import { ShoppingCart, FileText } from "lucide-react";
 
 export default function DashboardPage() {
   const nav = useNavigate();
@@ -203,7 +205,15 @@ export default function DashboardPage() {
                   { key: "status", header: "Status" },
                 ]}
                 rows={data.recent_orders ?? []}
-                empty="No recent orders"
+                empty={
+                  <EmptyState
+                    icon={ShoppingCart}
+                    title="No recent orders"
+                    description="Create a new sales order to get started."
+                    actionLabel="New Order"
+                    onAction={() => nav("/sales/new")}
+                  />
+                }
                 renderRow={(o) => (
                   <TableRowCard key={o.id}>
                     <div className="font-semibold text-[#111] truncate">{o.order_number}</div>
@@ -229,7 +239,13 @@ export default function DashboardPage() {
                   { key: "status", header: "Status" },
                 ]}
                 rows={data.recent_invoices ?? []}
-                empty="No recent invoices"
+                empty={
+                  <EmptyState
+                    icon={FileText}
+                    title="No recent invoices"
+                    description="Invoices generated from your sales orders will appear here."
+                  />
+                }
                 renderRow={(inv) => (
                   <TableRowCard key={inv.id}>
                     <div className="font-semibold text-[#111] truncate">{inv.invoice_number}</div>

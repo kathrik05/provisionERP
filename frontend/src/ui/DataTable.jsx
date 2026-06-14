@@ -45,7 +45,7 @@ export default function DataTable({
           {rows?.length ? (
             rows.map(renderRow)
           ) : (
-            <div className="py-12 text-center text-gray-400 bg-white rounded-2xl border border-[#F0F0F0] border-dashed">
+            <div className="flex flex-col items-center justify-center py-16 px-6 text-center text-gray-400 bg-white rounded-2xl border border-[#F0F0F0] border-dashed">
               {empty ?? "Nothing to show"}
             </div>
           )}

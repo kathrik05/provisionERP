@@ -22,6 +22,9 @@ class OfferRecommendationOut(BaseModel):
     client_id: UUID
     offer_type: str
     offer_details: Dict[str, Any]
+    headline: Optional[str] = None
+    client_pitch: Optional[str] = None
+    supplier_benefit: Optional[str] = None
     reasoning: str
     status: str
     created_at: datetime
@@ -48,4 +51,3 @@ class OfferSimulationOut(BaseModel):
     parameters: Dict[str, Any]
     result: Dict[str, Any]
     created_at: datetime
-

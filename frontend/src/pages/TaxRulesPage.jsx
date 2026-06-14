@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Star, Pencil, ShieldCheck, UserX } from "lucide-react";
+import { Star, Pencil, ShieldCheck, UserX, Percent } from "lucide-react";
 import Modal from "../components/Modal.jsx";
 import {
   useCreateTaxRule,
@@ -12,6 +12,7 @@ import {
 import DataTable from "../ui/DataTable.jsx";
 import TableRowCard from "../ui/TableRowCard.jsx";
 import StatusPill from "../ui/StatusPill.jsx";
+import EmptyState from "../ui/EmptyState.jsx";
 
 const emptyForm = { name: "", rate: "0", is_default: false };
 
@@ -94,11 +95,19 @@ export default function TaxRulesPage() {
           ]}
           rows={listQuery.isLoading || listQuery.isError ? [] : rows}
           empty={
-            listQuery.isLoading
-              ? "Loading…"
-              : listQuery.isError
-                ? "Failed to load tax rules"
-                : "No tax rules found"
+            listQuery.isLoading ? (
+              "Loading…"
+            ) : listQuery.isError ? (
+              "Failed to load tax rules"
+            ) : (
+              <EmptyState
+                icon={Percent}
+                title="No tax rules found"
+                description="Get started by adding your first tax rule."
+                actionLabel="Add Tax Rule"
+                onAction={openAdd}
+              />
+            )
           }
           renderRow={(r) => (
             <TableRowCard key={r.id}>

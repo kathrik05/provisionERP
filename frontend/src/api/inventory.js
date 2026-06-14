@@ -1,6 +1,6 @@
 import { http } from "./http";
 
-export async function listItems({ search, low_stock }) {
+export async function listItems({ search, low_stock } = {}) {
   const params = {};
   if (search) params.search = search;
   if (low_stock) params.low_stock = true;

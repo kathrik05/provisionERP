@@ -10,6 +10,7 @@ from database import get_db
 from models.clients import Client
 from models.items import Item
 from models.sales import OrderItem, SalesOrder
+from models.price_history import ItemPriceHistory
 from models.taxes import TaxRule
 from response import error, success
 from schemas.sales import (
@@ -452,6 +453,34 @@ def confirm_order(order_id: str, db: Session = Depends(get_db)):
                     return error(f"Insufficient stock for item: {item.name}")
                 item.stock_quantity = new_qty
                 db.add(item)
+                
+            # Calculate profit
+            price_history = (
+                db.query(ItemPriceHistory)
+                .filter(ItemPriceHistory.item_id == li.item_id)
+                .filter(ItemPriceHistory.price_date <= order.order_date)
+                .order_by(ItemPriceHistory.price_date.desc())
+                .first()
+            )
+            
+            if price_history:
+                cost_price = price_history.price
+                li.cost_price = cost_price
+                
+                unit_price = Decimal(str(li.unit_price))
+                qty = Decimal(str(li.quantity))
+                cost = Decimal(str(cost_price))
+                
+                profit_amount = (unit_price - cost) * qty
+                li.profit_amount = profit_amount
+                
+                if cost > 0:
+                    profit_percent = ((unit_price - cost) / cost) * Decimal("100")
+                    li.profit_percent = profit_percent
+                else:
+                    li.profit_percent = Decimal("100") # Edge case
+                    
+                db.add(li)
 
         order.status = "confirmed"
         db.add(order)

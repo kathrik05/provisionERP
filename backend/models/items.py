@@ -39,6 +39,10 @@ class Item(Base):
 
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="true")
 
+    current_cost_price: Mapped[float | None] = mapped_column(
+        Numeric(12, 2), nullable=True
+    )
+
     created_at: Mapped[DateTime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )

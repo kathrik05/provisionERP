@@ -52,5 +52,6 @@ class ItemOut(BaseModel):
     reorder_level: float
     tax_id: Optional[UUID] = None
     is_active: bool
+    current_cost_price: Optional[float] = None
     created_at: datetime
     updated_at: datetime

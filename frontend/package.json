@@ -13,17 +13,18 @@
     "@tanstack/react-query": "^5.100.10",
     "axios": "^1.16.1",
     "lucide-react": "^1.16.0",
-    "recharts": "^2.12.7",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-hot-toast": "^2.6.0",
-    "react-router-dom": "^6.26.2"
+    "react-router-dom": "^6.26.2",
+    "recharts": "^2.12.7"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^6.0.1",
+    "agentation": "^3.0.2",
     "autoprefixer": "^10.4.20",
     "eslint": "^10.3.0",
     "eslint-plugin-react-hooks": "^7.1.1",
