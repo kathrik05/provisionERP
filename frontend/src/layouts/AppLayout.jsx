@@ -27,14 +27,14 @@ function MobileNav({ open, onClose }) {
         role="button"
         tabIndex={0}
       />
-      <div className="absolute left-4 right-4 top-4 ui-card p-3">
-        <div className="px-2 pb-2 flex items-center justify-between">
+      <div className="absolute left-4 right-4 top-4 ui-card p-3 max-h-[calc(100vh-2rem)] flex flex-col">
+        <div className="px-2 pb-2 flex items-center justify-between shrink-0">
           <div className="text-sm font-semibold tracking-tight">Provisions ERP</div>
           <button type="button" className="ui-btn-secondary px-3 py-1.5" onClick={onClose}>
             Close
           </button>
         </div>
-        <div className="space-y-1">
+        <div className="space-y-1 overflow-y-auto p-1">
           {nav.map((item) => (
             <NavLink
               key={item.to}
@@ -69,15 +69,17 @@ export default function AppLayout() {
   return (
     <div className="min-h-screen bg-app-bg text-app-text-primary">
       <MobileNav open={mobileOpen} onClose={() => setMobileOpen(false)} />
-      <button
-        type="button"
-        className="lg:hidden fixed top-4 left-4 z-40 ui-btn-secondary px-3 py-2"
-        onClick={() => setMobileOpen(true)}
-        aria-label="Open navigation"
-        title={currentLabel}
-      >
-        Menu
-      </button>
+      <div className="lg:hidden sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-app-border/70 flex items-center px-4 py-3">
+        <button
+          type="button"
+          className="ui-btn-secondary px-3 py-1.5 mr-3"
+          onClick={() => setMobileOpen(true)}
+          aria-label="Open navigation"
+        >
+          Menu
+        </button>
+        <div className="font-semibold text-sm">{currentLabel}</div>
+      </div>
 
       <div className="flex">
         <Sidebar />
