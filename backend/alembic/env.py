@@ -24,8 +24,10 @@ import os
 # access to the values within the .ini file in use.
 config = context.config
 
-db_url = os.environ.get("DATABASE_URL")
+from config import settings
+db_url = settings.DATABASE_URL
 if db_url:
+    db_url = db_url.replace("%", "%%")
     config.set_main_option("sqlalchemy.url", db_url)
 
 # Interpret the config file for Python logging.

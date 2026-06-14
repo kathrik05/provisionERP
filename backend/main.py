@@ -18,7 +18,7 @@ app = FastAPI(title="Provisions ERP")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -39,20 +39,22 @@ from routers.suppliers import router as suppliers_router
 from routers.purchases import router as purchases_router
 from routers.price_history import router as price_history_router
 
-app.include_router(clients_router)
-app.include_router(inventory_router)
-app.include_router(sales_router)
-app.include_router(taxes_router)
-app.include_router(settings_router)
-app.include_router(invoices_router)
-app.include_router(reports_router)
-app.include_router(offers_router)
-app.include_router(suppliers_router)
-app.include_router(purchases_router)
-app.include_router(price_history_router)
+app.include_router(clients_router, prefix="/api")
+app.include_router(inventory_router, prefix="/api")
+app.include_router(sales_router, prefix="/api")
+app.include_router(taxes_router, prefix="/api")
+app.include_router(settings_router, prefix="/api")
+app.include_router(invoices_router, prefix="/api")
+app.include_router(reports_router, prefix="/api")
+app.include_router(offers_router, prefix="/api")
+app.include_router(suppliers_router, prefix="/api")
+app.include_router(purchases_router, prefix="/api")
+app.include_router(price_history_router, prefix="/api")
 
 
 @app.get("/")
+@app.get("/api")
+@app.get("/api/")
 def root():
     try:
         return success({"status": "ok"})
